@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Immoral Attention - Online Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="lib/webgazer.min.js" defer></script>
+  <script src="experiment.js" defer></script>
+</head>
+<body>
+
+  <div id="screen-checks" class="screen active">
+    <h2>Experiment Setup</h2>
+    <p>We need to verify a few things before starting.</p>
+    <div id="check-box">
+      <ul id="check-list"></ul>
+      <p id="checks-fail-msg" style="display:none;">Please fix the issues marked above and refresh this page.</p>
+    </div>
+    <button id="btn-start-setup" disabled>Everything looks good - continue</button>
+  </div>
+
+  <div id="screen-entry" class="screen">
+    <h2>Participant Information</h2>
+    <form id="entry-form">
+      <label>ID: <input type="number" id="input-id" required></label>
+      <label>Age: <input type="number" id="input-age" required></label>
+      <label>Gender:
+        <select id="input-gender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+      <button type="submit">Begin</button>
+    </form>
+  </div>
+
+  <div id="screen-face-check" class="screen">
+    <h2>Camera Setup</h2>
+    <p id="face-check-msg">Position your face in the camera. Sit about 60cm from the screen in a well-lit room.</p>
+    <p id="face-status">Starting webcam...</p>
+    <button id="btn-face-ok" disabled>Continue</button>
+  </div>
+
+  <div id="screen-calibration-intro" class="screen">
+    <h2>Eye Tracking Calibration</h2>
+    <p>Red dots will appear on the screen one at a time.</p>
+    <p>Look directly at each dot and click it 5 times.</p>
+    <p>Take your time and keep your eyes on the dot as you click.</p>
+    <button id="btn-start-calibration">Start calibration</button>
+  </div>
+
+  <div id="screen-calibration" class="screen">
+    <div id="calibration-container"></div>
+  </div>
+
+  <div id="screen-validation-intro" class="screen">
+    <h2>Calibration Check</h2>
+    <p>Blue dots will now appear one at a time.</p>
+    <p>Just look at each dot for a few seconds. Do not click.</p>
+    <p>This checks how accurate the calibration is.</p>
+    <button id="btn-start-validation">Start check</button>
+  </div>
+
+  <div id="screen-validation" class="screen">
+  </div>
+
+  <div id="screen-validation-result" class="screen">
+    <h2>Calibration Result</h2>
+    <p id="validation-result"></p>
+    <div id="validation-buttons">
+      <button id="btn-recalibrate">Recalibrate</button>
+      <button id="btn-accept-calibration">Continue to experiment</button>
+    </div>
+  </div>
+
+  <div id="screen-consent" class="screen">
+    <div id="consent-box">
+      <h2>Informed Consent</h2>
+      <p>[CONSENT TEXT]</p>
+      <p>By clicking "I agree" you confirm that you have read and understood the above, and that you voluntarily agree to participate.</p>
+      <div id="consent-buttons">
+        <button id="btn-consent-agree">I agree</button>
+        <button id="btn-consent-decline">I do not agree</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-instructions" class="screen">
+    <div id="instructions-box">
+      <h2>Task Instructions</h2>
+      <p>In this experiment, you will evaluate job candidates for a position.</p>
+      <p>On each trial, you will see a card with information about a candidate. You may then choose to see additional information about the candidate.</p>
+      <p>After reviewing the information, you will rate how qualified you think the candidate is on a scale from 1 (not qualified at all) to 10 (extremely qualified).</p>
+      <p>Use the number keys (1-9, 0 for 10) to select your rating, then press SPACE to confirm.</p>
+      <p>Press SPACE or RIGHT ARROW to move between screens during the task.</p>
+      <button id="btn-start-trials">Start experiment</button>
+    </div>
+  </div>
+
+  <div id="screen-fixation" class="screen">
+    <span id="fixation-cross">+</span>
+  </div>
+
+  <div id="screen-card" class="screen">
+    <div id="card-container">
+      <div class="card-main">
+        <div class="card-box" id="box-top"></div>
+        <div class="card-box" id="box-mid"></div>
+        <div class="card-box" id="box-bot"></div>
+      </div>
+    </div>
+    <p class="prompt">Press SPACE or RIGHT ARROW to continue</p>
+  </div>
+
+  <div id="screen-see-more" class="screen">
+    <p id="see-more-text"></p>
+  </div>
+
+  <div id="screen-rating" class="screen">
+    <p>How qualified do you think the candidate is?</p>
+    <p>Press the number from 1 to 10 to provide your assessment and then press SPACE to proceed.</p>
+    <div id="rating-display">
+      <span id="rating-value">1</span>
+    </div>
+    <p class="rating-scale">1: not qualified at all ---- 10: extremely qualified</p>
+  </div>
+
+  <div id="screen-end" class="screen">
+    <h2>Experiment Complete</h2>
+    <p>Thank you for participating.</p>
+    <p id="end-debrief">[DEBRIEF TEXT]</p>
+    <p id="end-status">Saving data...</p>
+    <p id="end-detail"></p>
+  </div>
+
+  <div id="fullscreen-warning">
+    <h2>Fullscreen Required</h2>
+    <p>You have exited fullscreen mode. The experiment is paused.</p>
+    <button id="btn-restore-fullscreen">Return to fullscreen</button>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+.DS_Store
+*.edf
+*.pyc
+__pycache__/
+IDs.json
+scenariolist
+node_modules/
