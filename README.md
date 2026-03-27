@@ -23,6 +23,19 @@ Condition assignment is between-subjects: condition 1 sees performance info firs
 
 Open `src/web/index.html` in Chrome. WebGazer needs webcam access and works best in Chrome. No build step or server required for local testing.
 
+For local gaze tracking to work, the page needs to be served (not opened as a file). A quick way to do that:
+
+```
+cd src/web
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000` in Chrome.
+
+## Visualisation tool
+
+`src/web/visualise/` is a standalone tool for inspecting trial data after collection. Open it in any browser, drop in the behavioral and gaze CSV files, and it overlays gaze samples on the stimulus cards with per-AOI dwell percentages, first fixation markers, and a temporal gaze timeline for each trial. No server needed.
+
 ## Output
 
 Two CSV files are downloaded at the end of the experiment:

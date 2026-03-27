@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gaze Overlay</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #141414;
+      color: #d0d0d0;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    /* ---- sticky toolbar ---- */
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #141414;
+      border-bottom: 1px solid #242424;
+      padding: 0.75rem 1.4rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0.75rem 1.6rem;
+    }
+
+    .ctrl { display: flex; flex-direction: column; gap: 0.22rem; }
+
+    .ctrl > .lbl {
+      font-size: 0.64rem;
+      color: #484848;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ---- file drop zones ---- */
+    .drop-zone {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.65rem;
+      border: 1px dashed #303030;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #505050;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #4ab0ff; color: #4ab0ff; }
+    .drop-zone.loaded { border-style: solid; border-color: #363636; color: #999; }
+    .drop-zone .dot { width: 6px; height: 6px; border-radius: 50%; background: #383838; flex-shrink: 0; }
+    .drop-zone.loaded .dot { background: #50d880; }
+    .drop-zone input[type="file"] { display: none; }
+
+    /* ---- selects ---- */
+    select {
+      background: #1a1a1a;
+      color: #bbb;
+      border: 1px solid #2e2e2e;
+      border-radius: 3px;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    select:hover { border-color: #404040; }
+
+    /* ---- mode toggle ---- */
+    .btn-group { display: flex; }
+    .mode-btn {
+      padding: 0.3rem 0.7rem;
+      font-size: 0.78rem;
+      background: #1a1a1a;
+      color: #555;
+      border: 1px solid #2e2e2e;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+    }
+    .mode-btn:first-child { border-radius: 3px 0 0 3px; }
+    .mode-btn:last-child  { border-radius: 0 3px 3px 0; border-left: none; }
+    .mode-btn:not(:first-child):not(:last-child) { border-left: none; }
+    .mode-btn:hover   { color: #aaa; }
+    .mode-btn.active  { background: #263344; color: #4ab0ff; border-color: #2e4a66; }
+
+    /* ---- sliders ---- */
+    .slider-wrap { display: flex; align-items: center; gap: 0.45rem; }
+    input[type="range"] {
+      width: 80px;
+      accent-color: #4ab0ff;
+      cursor: pointer;
+    }
+    .slider-val { font-size: 0.78rem; color: #666; min-width: 2rem; }
+
+    /* ---- check + export ---- */
+    .check-label {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.78rem; color: #555; cursor: pointer; white-space: nowrap;
+    }
+    .check-label input { accent-color: #4ab0ff; cursor: pointer; }
+    .check-label:hover { color: #888; }
+
+    .action-btn {
+      padding: 0.3rem 0.75rem;
+      font-size: 0.78rem;
+      background: #1a1a1a;
+      color: #555;
+      border: 1px solid #2e2e2e;
+      border-radius: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .action-btn:hover { color: #aaa; border-color: #404040; }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: #242424;
+      align-self: center;
+    }
+
+    /* ---- status bar ---- */
+    #statusbar {
+      padding: 0.45rem 1.4rem;
+      font-size: 0.75rem;
+      color: #606060;
+      border-bottom: 1px solid #1e1e1e;
+      min-height: 1.8rem;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    #statusbar span { display: flex; align-items: center; gap: 0.35rem; }
+    #statusbar strong { color: #999; }
+    #statusbar .hint { margin-left: auto; color: #383838; font-size: 0.7rem; }
+
+    /* ---- empty state ---- */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      padding: 5rem 2rem;
+      color: #484848;
+    }
+    #empty-state .big { font-size: 2rem; }
+    #empty-state p { font-size: 0.85rem; line-height: 1.7; text-align: center; max-width: 340px; }
+
+    /* ---- trials ---- */
+    #trials-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 1.2rem 1.4rem 2rem;
+    }
+
+    .trial-block {
+      border: 1px solid #1f1f1f;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 1.2rem;
+    }
+
+    .trial-header {
+      display: flex;
+      align-items: center;
+      gap: 1.6rem;
+      padding: 0.6rem 1rem;
+      background: #1a1a1a;
+      border-bottom: 1px solid #212121;
+    }
+
+    .trial-num { font-size: 0.82rem; font-weight: 700; color: #777; }
+
+    .trial-pip {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      color: #444;
+    }
+    .trial-pip strong { color: #666; }
+
+    .rating-badge {
+      margin-left: auto;
+      padding: 0.15rem 0.55rem;
+      background: #212121;
+      border: 1px solid #303030;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      color: #777;
+    }
+    .rating-badge strong { color: #aaa; }
+
+    .trial-body {
+      display: flex;
+      gap: 0;
+      padding: 1rem 1.4rem;
+      background: #171717;
+      justify-content: center;
+    }
+
+    /* ---- phase column ---- */
+    .phase-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 0 0 auto;
+    }
+    .phase-col + .phase-col {
+      margin-left: 1.2rem;
+      padding-left: 1.2rem;
+      border-left: 1px solid #1f1f1f;
+    }
+
+    .phase-label {
+      font-size: 0.62rem;
+      color: #505050;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    canvas {
+      display: block;
+      border-radius: 3px;
+    }
+
+    /* ---- not-viewed placeholder ---- */
+    .phase-placeholder {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .placeholder-canvas {
+      border-radius: 3px;
+      background: #1c1c1c;
+      border: 1px dashed #242424;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.4rem;
+      color: #2e2e2e;
+      font-size: 0.75rem;
+    }
+    .placeholder-canvas .ph-icon { font-size: 1.4rem; }
+
+    /* ---- stats ---- */
+    .aoi-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .stat-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: #444;
+    }
+    .stat-row .swatch { width: 7px; height: 7px; border-radius: 1px; flex-shrink: 0; }
+    .stat-row .pct    { color: #777; font-weight: 700; min-width: 2.4rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .stat-row .bar-wrap { flex: 1; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
+    .stat-row .bar    { height: 100%; border-radius: 2px; }
+    .stat-row .lbl    { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; flex-shrink: 0; }
+    .stat-total { font-size: 0.65rem; color: #484848; margin-top: 0.15rem; padding-top: 0.25rem; border-top: 1px solid #252525; }
+    .stat-row.first-hit .lbl { color: #999; }
+    .first-badge {
+      font-size: 0.58rem;
+      color: #4ab0ff;
+      border: 1px solid #2a4a66;
+      border-radius: 2px;
+      padding: 0 3px;
+      flex-shrink: 0;
+      line-height: 1.4;
+    }
+
+    /* ---- timeline ---- */
+    .timeline-wrap { margin-top: 0.4rem; }
+    .timeline-label { font-size: 0.6rem; color: #484848; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+    canvas.timeline { border-radius: 2px; display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+
+    <!-- file loaders -->
+    <div class="ctrl">
+      <span class="lbl">Behavioral</span>
+      <div class="drop-zone" id="drop-beh">
+        <div class="dot"></div>
+        <span id="lbl-beh">Drop or click to load</span>
+        <input type="file" id="file-beh" accept=".csv">
+      </div>
+    </div>
+    <div class="ctrl">
+      <span class="lbl">Gaze</span>
+      <div class="drop-zone" id="drop-gaze">
+        <div class="dot"></div>
+        <span id="lbl-gaze">Drop or click to load</span>
+        <input type="file" id="file-gaze" accept=".csv">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- trial + phase selectors -->
+    <div class="ctrl">
+      <span class="lbl">Trial</span>
+      <select id="sel-trial"><option value="all">All</option></select>
+    </div>
+    <div class="ctrl">
+      <span class="lbl">Phase</span>
+      <select id="sel-phase">
+        <option value="all" selected>Both</option>
+        <option value="first_card">First card</option>
+        <option value="second_card">Second card</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- mode toggle -->
+    <div class="ctrl">
+      <span class="lbl">Mode</span>
+      <div class="btn-group">
+        <button class="mode-btn active" data-mode="scatter">Scatter</button>
+        <button class="mode-btn"        data-mode="heat">Heatmap</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- misc controls -->
+    <div class="ctrl">
+      <span class="lbl">&nbsp;</span>
+      <div style="display:flex;align-items:center;gap:0.8rem;">
+        <label class="check-label"><input type="checkbox" id="chk-offaoi"> Hide off-AOI</label>
+        <button class="action-btn" id="btn-export-png">Export PNG</button>
+        <button class="action-btn" id="btn-export-csv">Export stats CSV</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="statusbar">Load both CSV files to begin.</div>
+
+  <div id="trials-wrap">
+    <div id="empty-state">
+      <div class="big">◎</div>
+      <p>Drop your behavioral and gaze CSV files into the boxes above to get started.</p>
+    </div>
+  </div>
+
+  <script>
+    const AOI_RGB    = [[255, 85, 85], [74, 176, 255], [80, 216, 128]];
+    const OFF_RGB    = [255, 180, 0];
+    const AOI_HEX    = ['#ff5555', '#4ab0ff', '#50d880'];
+    const OFF_HEX    = '#ffb400';
+    const CARD_W     = 380;
+    const MIN_FONT   = 10;
+    const DPR        = window.devicePixelRatio || 1;
+
+    // card/box proportions from style.css:
+    // card 35vw x 85vh, box 20vw x 12vh, gap 10vh -> content 56vh, pad = (85-56)/2 = 14.5vh
+    const CARD_PAD_Y_RATIO  = (85 - 56) / 2 / 12;
+    const CARD_HALF_W_RATIO = 35 / 20 / 2;
+
+    const SCATTER_OPACITY = 0.65;
+    const SCATTER_R       = 3;
+    const HEAT_R          = 8;
+    const HEAT_OPACITY    = 0.55;
+    const TIMELINE_H      = 18;
+
+    let beh       = [];
+    let gaze      = [];
+    let mode      = 'scatter';
+    let hasAoiHit = false; // true when gaze CSV includes pre-computed aoi_hit column
+
+    function parseCSV(txt) {
+      const lines = txt.trim().split('\n');
+      const hdr   = lines[0].split(',').map(s => s.trim());
+      return lines.slice(1).filter(l => l.trim()).map(line => {
+        const vals = line.split(',');
+        const row  = {};
+        hdr.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+        return row;
+      });
+    }
+
+    function readFile(file, cb) {
+      const r = new FileReader();
+      r.onload = e => cb(parseCSV(e.target.result), file.name);
+      r.readAsText(file);
+    }
+
+    function setupDropZone(zoneId, inputId, labelId, onLoad) {
+      const zone  = document.getElementById(zoneId);
+      const input = document.getElementById(inputId);
+      const lbl   = document.getElementById(labelId);
+
+      function load(file) {
+        readFile(file, (data, name) => {
+          zone.classList.add('loaded');
+          lbl.textContent = name;
+          onLoad(data);
+        });
+      }
+
+      zone.addEventListener('click',    () => input.click());
+      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop',      e => { e.preventDefault(); zone.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) load(f); });
+      input.addEventListener('change',   () => { if (input.files[0]) load(input.files[0]); });
+    }
+
+    setupDropZone('drop-beh',  'file-beh',  'lbl-beh',  d => { beh = d; refreshTrialSel(); render(); });
+    setupDropZone('drop-gaze', 'file-gaze', 'lbl-gaze', d => { gaze = d; hasAoiHit = gaze.length > 0 && gaze[0].aoi_hit !== ''; render(); });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+        render();
+      });
+    });
+
+    ['sel-trial', 'sel-phase'].forEach(id =>
+      document.getElementById(id).addEventListener('change', render)
+    );
+
+    document.getElementById('chk-offaoi').addEventListener('change', render);
+    document.getElementById('btn-export-png').addEventListener('click', exportPNG);
+    document.getElementById('btn-export-csv').addEventListener('click', exportStatsCSV);
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.key === 'ArrowRight') navigateTrial(1);
+      if (e.key === 'ArrowLeft')  navigateTrial(-1);
+    });
+
+    function navigateTrial(dir) {
+      const sel  = document.getElementById('sel-trial');
+      const opts = [...sel.options];
+      const next = opts.findIndex(o => o.value === sel.value) + dir;
+      if (next >= 0 && next < opts.length) { sel.value = opts[next].value; render(); }
+    }
+
+    function refreshTrialSel() {
+      const sel = document.getElementById('sel-trial');
+      sel.innerHTML = '<option value="all">All</option>';
+      [...new Set(beh.map(r => r.trial))].forEach(t => {
+        const o = document.createElement('option');
+        o.value = t; o.textContent = 'Trial ' + t;
+        sel.appendChild(o);
+      });
+    }
+
+    function getRects(trial, offset) {
+      const out = [];
+      for (let i = 0; i < 3; i++) {
+        const n = offset + i;
+        const l = parseFloat(trial['aoi_' + n + '_left']);
+        if (isNaN(l)) return null;
+        out.push({
+          left:   l,
+          top:    parseFloat(trial['aoi_' + n + '_top']),
+          right:  parseFloat(trial['aoi_' + n + '_right']),
+          bottom: parseFloat(trial['aoi_' + n + '_bottom']),
+          type:   trial['aoi_' + n + '_type'] || '',
+          attr:   trial['aoi_' + n + '_attr'] || '',
+        });
+      }
+      return out;
+    }
+
+    // card bounds from AOI rects using CSS proportions (see constants above)
+    function cardBounds(rects) {
+      const boxW = rects[0].right - rects[0].left;
+      const boxH = rects[0].bottom - rects[0].top;
+      const cx   = (rects[0].left + rects[0].right) / 2;
+      return {
+        left:   cx - CARD_HALF_W_RATIO * boxW,
+        top:    rects[0].top    - CARD_PAD_Y_RATIO * boxH,
+        right:  cx + CARD_HALF_W_RATIO * boxW,
+        bottom: rects[2].bottom + CARD_PAD_Y_RATIO * boxH,
+      };
+    }
+
+    function hitAOI(x, y, rects) {
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
+      }
+      return -1;
+    }
+
+    // uses pre-computed aoi_hit when available, falls back to geometric test for older data
+    function getHitIndex(sample, rects, phaseKey) {
+      if (hasAoiHit) {
+        const n = parseInt(sample.aoi_hit);
+        if (isNaN(n)) return -1;
+        const offset = phaseKey === 'first_card' ? 1 : 4;
+        return (n >= offset && n < offset + 3) ? n - offset : -1;
+      }
+      return hitAOI(parseFloat(sample.x), parseFloat(sample.y), rects);
+    }
+
+    function makeCanvas(w, h) {
+      const c      = document.createElement('canvas');
+      c.width       = w * DPR;
+      c.height      = h * DPR;
+      c.style.width  = w + 'px';
+      c.style.height = h + 'px';
+      const ctx = c.getContext('2d');
+      ctx.scale(DPR, DPR);
+      return { canvas: c, ctx };
+    }
+
+    function drawTimeline(samples, rects, phaseKey) {
+      const { canvas, ctx } = makeCanvas(CARD_W, TIMELINE_H);
+      ctx.fillStyle = '#1c1c1c';
+      ctx.fillRect(0, 0, CARD_W, TIMELINE_H);
+      if (!samples.length) return canvas;
+
+      // single pass: compute t0/dur and classify hits together
+      let t0 = Infinity, t1 = -Infinity;
+      const parsed = samples.map(s => {
+        const t = parseInt(s.t);
+        if (t < t0) t0 = t;
+        if (t > t1) t1 = t;
+        return { t, hit: getHitIndex(s, rects, phaseKey) };
+      });
+      const dur = t1 - t0 || 1;
+
+      parsed.forEach(({ t, hit }) => {
+        ctx.fillStyle = hit >= 0 ? AOI_HEX[hit] : '#252525';
+        ctx.fillRect(Math.floor((t - t0) / dur * CARD_W), 2, 2, TIMELINE_H - 4);
+      });
+
+      if (dur > 2000) {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        for (let t = 1000; t < dur; t += 1000)
+          ctx.fillRect(Math.floor(t / dur * CARD_W), 0, 1, TIMELINE_H);
+      }
+
+      canvas.className = 'timeline';
+      return canvas;
+    }
+
+    // ---- draw one phase ----
+    function drawPhase(trial, phaseKey, hideOff) {
+      const offset = phaseKey === 'first_card' ? 1 : 4;
+      const rects  = getRects(trial, offset);
+      if (!rects) return null;
+
+      const card  = cardBounds(rects);
+      const PAD   = 5;
+      const cropL = card.left  - PAD,  cropT = card.top    - PAD;
+      const cropR = card.right + PAD,  cropB = card.bottom + PAD;
+
+      const scale = CARD_W / (cropR - cropL);
+      const ch    = Math.round((cropB - cropT) * scale);
+
+      const { canvas, ctx } = makeCanvas(CARD_W, ch);
+
+      // card background
+      ctx.fillStyle = '#d4d4d4';
+      ctx.fillRect(0, 0, CARD_W, ch);
+
+      const font  = Math.max(MIN_FONT, Math.round(11 * scale));
+      const boxes = rects.map(r => ({
+        bx: (r.left   - cropL) * scale,
+        by: (r.top    - cropT) * scale,
+        bw: (r.right  - r.left) * scale,
+        bh: (r.bottom - r.top)  * scale,
+        label: r.type && r.attr ? `${r.type}: ${r.attr}` : r.type || r.attr || '',
+      }));
+
+      // box fills drawn before gaze so dots render on top, outlines+text drawn after
+      boxes.forEach(({ bx, by, bw, bh }) => {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(bx, by, bw, bh);
+      });
+
+      const samples    = gaze.filter(g => g.trial === trial.trial && g.phase === phaseKey);
+      const hitCounts  = [0, 0, 0];
+      let   offCount   = 0;
+      let   firstHit   = -1;
+
+      if (samples.length > 0) {
+        const { canvas: gl, ctx: gc } = makeCanvas(CARD_W, ch);
+
+        if (mode === 'heat') gc.filter = `blur(${HEAT_R * 2}px)`;
+        const dotR = mode === 'heat' ? HEAT_R : SCATTER_R;
+        const dotA = mode === 'heat' ? HEAT_OPACITY : SCATTER_OPACITY;
+
+        samples.forEach(s => {
+          const gx  = parseFloat(s.x),  gy = parseFloat(s.y);
+          const hit = getHitIndex(s, rects, phaseKey);
+          if (hit >= 0) {
+            hitCounts[hit]++;
+            if (firstHit < 0) firstHit = hit;
+          } else {
+            offCount++;
+          }
+          if (hit < 0 && hideOff) return;
+
+          const sx  = (gx - cropL) * scale;
+          const sy  = (gy - cropT) * scale;
+          const [r, g2, b] = hit >= 0 ? AOI_RGB[hit] : OFF_RGB;
+          gc.beginPath();
+          gc.arc(sx, sy, dotR, 0, Math.PI * 2);
+          gc.fillStyle = `rgba(${r},${g2},${b},${dotA})`;
+          gc.fill();
+        });
+
+        if (mode === 'heat') gc.filter = 'none';
+        ctx.drawImage(gl, 0, 0, CARD_W, ch);
+      }
+
+      ctx.font         = `${font}px Arial`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      boxes.forEach(({ bx, by, bw, bh, label }, i) => {
+        ctx.strokeStyle = AOI_HEX[i];
+        ctx.lineWidth   = 1.5;
+        ctx.strokeRect(bx + 0.75, by + 0.75, bw - 1.5, bh - 1.5);
+        const tw = ctx.measureText(label).width;
+        const cx = bx + bw / 2, cy = by + bh / 2;
+        ctx.fillStyle = 'rgba(255,255,255,0.88)';
+        ctx.fillRect(cx - tw / 2 - 3, cy - font / 2 - 2, tw + 6, font + 4);
+        ctx.fillStyle = '#222';
+        ctx.fillText(label, cx, cy);
+      });
+
+      if (firstHit >= 0) {
+        const r  = rects[firstHit];
+        const bx = (r.left - cropL) * scale, by = (r.top - cropT) * scale;
+        const bw = (r.right - r.left) * scale;
+        ctx.font         = `bold ${Math.max(MIN_FONT, Math.round(9 * scale))}px Arial`;
+        ctx.fillStyle    = AOI_HEX[firstHit];
+        ctx.textAlign    = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('1st', bx + 4, by + 3);
+      }
+
+      return { canvas, rects, hitCounts, offCount, total: samples.length, firstHit, samples };
+    }
+
+    function render() {
+      const wrap = document.getElementById('trials-wrap');
+      wrap.innerHTML = '';
+
+      if (!beh.length) {
+        const es = document.createElement('div');
+        es.id = 'empty-state';
+        es.innerHTML = '<div class="big">◎</div><p>Drop your behavioral and gaze CSV files into the boxes above to get started.</p>';
+        wrap.appendChild(es);
+        document.getElementById('statusbar').textContent = 'Load both CSV files to begin.';
+        return;
+      }
+
+      const hideOff  = document.getElementById('chk-offaoi').checked;
+      const selTrial = document.getElementById('sel-trial').value;
+      const selPhase = document.getElementById('sel-phase').value;
+      const trials   = selTrial === 'all' ? beh : beh.filter(r => r.trial === selTrial);
+
+      const sb = document.getElementById('statusbar');
+      const parts = [];
+      if (trials.length) parts.push(`${trials.length} trial${trials.length > 1 ? 's' : ''}`);
+      if (beh[0]?.subject_id) parts.push(`Participant ${beh[0].subject_id}`);
+      if (beh[0]?.session_id) parts.push(`Session ${beh[0].session_id}`);
+      if (gaze.length)        parts.push(`${gaze.length.toLocaleString()} gaze samples`);
+      else                    parts.push('Load gaze CSV to see overlay');
+      sb.innerHTML = parts.map(p => `<span>${p}</span>`).join('<span style="color:#2a2a2a">|</span>')
+        + '<span class="hint">← → to step trials</span>';
+
+      trials.forEach(trial => {
+        const block  = document.createElement('div');
+        block.className = 'trial-block';
+
+        const hdr = document.createElement('div');
+        hdr.className = 'trial-header';
+        hdr.innerHTML =
+          `<span class="trial-num">Trial ${trial.trial}</span>` +
+          `<span class="trial-pip">Condition <strong>${trial.condition}</strong></span>` +
+          `<span class="trial-pip">Val. error <strong>${trial.validation_error_px}px</strong></span>` +
+          `<span class="trial-pip">Second card <strong>${trial.saw_second_card === '1' ? 'viewed' : 'skipped'}</strong></span>` +
+          `<div class="rating-badge">Rating <strong>${trial.assessment}</strong> / 10</div>`;
+        block.appendChild(hdr);
+
+        const body = document.createElement('div');
+        body.className = 'trial-body';
+
+        const phasesToDraw = selPhase === 'all'
+          ? ['first_card', 'second_card']
+          : [selPhase];
+
+        phasesToDraw.forEach(phaseKey => {
+          const isSecond  = phaseKey === 'second_card';
+          const wasViewed = !isSecond || trial.saw_second_card === '1';
+
+          const col = document.createElement('div');
+          col.className = 'phase-col';
+
+          const lbl = document.createElement('div');
+          lbl.className   = 'phase-label';
+          lbl.textContent = isSecond ? 'Second card' : 'First card';
+          col.appendChild(lbl);
+
+          if (!wasViewed) {
+            // placeholder for cards the participant chose not to view
+            const offset = 4;
+            const rects  = getRects(trial, offset);
+            const ph     = document.createElement('div');
+            ph.className = 'placeholder-canvas';
+            const card   = rects ? cardBounds(rects) : null;
+            const scale  = CARD_W / ((card ? (card.right - card.left + 10) : CARD_W));
+            const phH    = card ? Math.round((card.bottom - card.top + 10) * scale) : 200;
+            ph.style.width  = CARD_W + 'px';
+            ph.style.height = phH    + 'px';
+            ph.innerHTML = '<div class="ph-icon">○</div><div>Not viewed</div>';
+            col.appendChild(ph);
+          } else {
+            const result = drawPhase(trial, phaseKey, hideOff);
+            if (!result) return;
+            const { canvas, rects, hitCounts, offCount, total, firstHit, samples } = result;
+            col.appendChild(canvas);
+
+            if (gaze.length) {
+              const tlWrap = document.createElement('div');
+              tlWrap.className = 'timeline-wrap';
+              const tlLbl = document.createElement('div');
+              tlLbl.className   = 'timeline-label';
+              tlLbl.textContent = 'Gaze over time';
+              tlWrap.appendChild(tlLbl);
+              tlWrap.appendChild(drawTimeline(samples, rects, phaseKey));
+              col.appendChild(tlWrap);
+
+              const stats = document.createElement('div');
+              stats.className = 'aoi-stats';
+
+              rects.map((r, i) => ({
+                color: AOI_HEX[i],
+                label: r.type && r.attr ? `${r.type}: ${r.attr}` : r.type || '—',
+                count: hitCounts[i],
+                isFirst: i === firstHit,
+              })).concat([{ color: OFF_HEX, label: 'Off-AOI', count: offCount, isFirst: false }])
+              .forEach(({ color, label, count, isFirst }) => {
+                const pct = total > 0 ? Math.round(count / total * 100) : 0;
+                const row = document.createElement('div');
+                row.className = 'stat-row' + (isFirst ? ' first-hit' : '');
+                row.innerHTML =
+                  `<div class="swatch" style="background:${color}"></div>` +
+                  `<span class="pct">${pct}%</span>` +
+                  `<div class="bar-wrap"><div class="bar" style="width:${pct}%;background:${color}"></div></div>` +
+                  `<span class="lbl" title="${label}">${label}</span>` +
+                  (isFirst ? '<span class="first-badge">1st</span>' : '');
+                stats.appendChild(row);
+              });
+
+              const tot = document.createElement('div');
+              tot.className   = 'stat-total';
+              tot.textContent = `${total.toLocaleString()} samples`;
+              stats.appendChild(tot);
+
+              col.appendChild(stats);
+            }
+          }
+
+          body.appendChild(col);
+        });
+
+        block.appendChild(body);
+        wrap.appendChild(block);
+      });
+    }
+
+    function exportStatsCSV() {
+      if (!beh.length || !gaze.length) return;
+
+      const rows = [];
+      const header = [
+        'session_id','subject_id','trial','condition','assessment',
+        'card','aoi_n','aoi_type','aoi_attr',
+        'dwell_count','dwell_pct','first_fixation'
+      ];
+
+      beh.forEach(trial => {
+        ['first_card', 'second_card'].forEach(phaseKey => {
+          if (phaseKey === 'second_card' && trial.saw_second_card !== '1') return;
+          const offset  = phaseKey === 'first_card' ? 1 : 4;
+          const rects   = getRects(trial, offset);
+          if (!rects) return;
+
+          const samples = gaze.filter(g => g.trial === trial.trial && g.phase === phaseKey);
+          if (!samples.length) return;
+
+          const hitCounts = [0, 0, 0];
+          let firstHit    = -1;
+          samples.forEach(s => {
+            const h = getHitIndex(s, rects, phaseKey);
+            if (h >= 0) { hitCounts[h]++; if (firstHit < 0) firstHit = h; }
+          });
+
+          rects.forEach((r, i) => {
+            const pct = Math.round(hitCounts[i] / samples.length * 100);
+            rows.push([
+              trial.session_id, trial.subject_id, trial.trial, trial.condition, trial.assessment,
+              phaseKey === 'first_card' ? 1 : 2,
+              offset + i, r.type, r.attr,
+              hitCounts[i], pct, i === firstHit ? 1 : 0,
+            ]);
+          });
+        });
+      });
+
+      const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+      const prefix = beh[0]?.session_id ? beh[0].session_id + '_' : '';
+      const a = document.createElement('a');
+      a.download = prefix + 'aoi_stats.csv';
+      a.href     = 'data:text/csv,' + encodeURIComponent(csv);
+      a.click();
+    }
+
+    function exportPNG() {
+      const blocks = [...document.querySelectorAll('.trial-block')];
+      if (!blocks.length) return;
+
+      const rows = blocks.map(b => [...b.querySelectorAll('canvas')]);
+      if (!rows.length || !rows[0].length) return;
+
+      const GAP    = 12;
+      const PAD    = 20;
+      const rowH   = rows.map(r => Math.max(...r.map(c => c.height / DPR)));
+      const rowW   = rows.map(r => r.reduce((s, c) => s + c.width / DPR + GAP, -GAP));
+      const totalW = Math.max(...rowW) + PAD * 2;
+      const totalH = rowH.reduce((s, h) => s + h + GAP, -GAP) + PAD * 2;
+
+      const out = document.createElement('canvas');
+      out.width  = totalW * DPR;
+      out.height = totalH * DPR;
+      const ctx  = out.getContext('2d');
+      ctx.scale(DPR, DPR);
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(0, 0, totalW, totalH);
+
+      let y = PAD;
+      rows.forEach((row, ri) => {
+        let x = PAD;
+        row.forEach(c => {
+          const cw = c.width / DPR, ch = c.height / DPR;
+          ctx.drawImage(c, x, y, cw, ch);
+          x += cw + GAP;
+        });
+        y += rowH[ri] + GAP;
+      });
+
+      const prefix = beh[0]?.session_id ? beh[0].session_id + '_' : '';
+      const a = document.createElement('a');
+      a.download = prefix + 'gaze_overlay.png';
+      a.href     = out.toDataURL('image/png');
+      a.click();
+    }
+  </script>
+</body>
+</html>
