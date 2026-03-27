@@ -5,3 +5,7 @@ __pycache__/
 IDs.json
 scenariolist
 node_modules/
+
+*.csv
+src/lab/
+docs/

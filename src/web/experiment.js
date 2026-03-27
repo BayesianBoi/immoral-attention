@@ -213,12 +213,18 @@ async function startFaceCheck() {
   } catch (e) {}
 
   if (!webgazerStarted) {
-    await webgazer
-      .setRegression('weightedRidge')
-      .setGazeListener(onGazeData)
-      .begin();
-    webgazer.applyKalmanFilter(true);
-    webgazerStarted = true;
+    try {
+      await webgazer
+        .setRegression('weightedRidge')
+        .setGazeListener(onGazeData)
+        .begin();
+      webgazer.applyKalmanFilter(true);
+      webgazerStarted = true;
+    } catch (e) {
+      document.getElementById('face-status').textContent =
+        'Camera access was denied. Please allow camera access in your browser and refresh.';
+      return;
+    }
   }
 
   webgazer.showVideo(true);
