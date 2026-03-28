@@ -1,52 +1,52 @@
 # Immoral Attention (Online)
 
-Online eye-tracking experiment built with WebGazer.js. Participants evaluate fictional job candidates and choose whether to view additional information. Gaze data is recorded throughout to measure attention allocation across attribute types (performance vs. demographic).
+Browser-based eye-tracking experiment using [WebGazer.js](https://webgazer.cs.brown.edu/). Participants evaluate fictional job candidates and optionally request additional information. Gaze is recorded throughout to measure attention allocation across performance attributes (education, experience, skills) and demographic attributes (race, age, gender).
 
-This is an online port of a lab-based PsychoPy + EyeLink paradigm. The trial structure and stimuli generation are identical to the lab version, but calibration and gaze tracking are handled through the browser webcam instead of dedicated hardware.
+Online port of a lab-based PsychoPy + EyeLink paradigm. Trial structure and stimulus generation match the lab version; calibration and gaze tracking run through the webcam instead of dedicated hardware.
 
-## How it works
+## Trial flow
 
 1. Setup checks (desktop, screen size, webcam)
-2. Consent form
+2. Consent
 3. Participant info (ID, age, gender)
-4. WebGazer calibration (9-point click) and validation (5-point passive)
-5. Trial loop:
-   - Fixation cross (0.5-1s)
+4. 9-point click calibration, then 5-point passive validation
+5. Trials:
+   - Fixation cross (0.5--1 s)
    - Card with 3 candidate attributes
-   - Option to view a second card with 3 more attributes
-   - Rating (1-10 scale)
+   - Optional second card with 3 more attributes
+   - Rating (1--10)
 6. Data download (behavioral CSV + gaze CSV)
 
-Condition assignment is between-subjects: condition 1 sees performance info first (education, experience, skills), condition 2 sees demographic info first (race, age, gender). Assigned by participant ID (even = condition 1, odd = condition 2).
+Condition assignment is between-subjects by participant ID: even IDs see performance info first, odd IDs see demographic info first.
 
 ## Running locally
 
-Open `src/web/index.html` in Chrome. WebGazer needs webcam access and works best in Chrome. No build step or server required for local testing.
-
-For local gaze tracking to work, the page needs to be served (not opened as a file). A quick way to do that:
+WebGazer requires the page to be served, not opened as a file. Start a local server and open in Chrome:
 
 ```
 cd src/web
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000` in Chrome.
+Then visit `http://localhost:8000`.
 
 ## Visualisation tool
 
-`src/web/visualise/` is a standalone tool for inspecting trial data after collection. Open it in any browser, drop in the behavioral and gaze CSV files, and it overlays gaze samples on the stimulus cards with per-AOI dwell percentages, first fixation markers, and a temporal gaze timeline for each trial. No server needed.
+`src/web/visualise/` is a standalone page for inspecting collected data. Open it in any browser, drop in the behavioral and gaze CSVs, and it renders gaze overlays on the stimulus cards with per-AOI dwell percentages, first-fixation markers, and a temporal timeline.
+
+![Visualisation tool](docs/visualise-screenshot.png)
+
+Example test data is available in `examples/test-data/`.
 
 ## Output
 
-Two CSV files are downloaded at the end of the experiment:
+**Behavioral CSV** (one row per trial): condition, stimuli, AOI attribute labels, AOI bounding rectangles (px), per-AOI gaze count and percentage, rating, validation error.
 
-**Behavioral CSV** (one row per trial): condition, stimuli shown, which AOI held which attribute, AOI bounding rectangles in pixels, gaze count and percentage per AOI, rating, and calibration validation error.
-
-**Gaze CSV** (one row per sample): trial number, phase, x/y coordinates, timestamp, which AOI the gaze fell in (if any), and viewport dimensions.
+**Gaze CSV** (one row per sample): trial, phase, x/y coordinates, timestamp, AOI hit, viewport dimensions.
 
 ## Dependencies
 
 - [WebGazer.js](https://webgazer.cs.brown.edu/) (bundled in `src/web/lib/`)
 - MediaPipe Face Mesh (bundled in `src/web/mediapipe/`)
 
-No external dependencies need to be installed.
+Nothing to install.

@@ -6,6 +6,8 @@ IDs.json
 scenariolist
 node_modules/
 
+# Ignore experiment output CSVs, but keep example test data
 *.csv
+!examples/**/*.csv
+
 src/lab/
-docs/

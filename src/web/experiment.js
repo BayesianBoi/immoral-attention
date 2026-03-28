@@ -194,6 +194,10 @@ function setupEntryForm() {
       alert('ID and Age must be numbers.');
       return;
     }
+    if (age < 18 || age > 99) {
+      alert('Age must be between 18 and 99.');
+      return;
+    }
 
     participantInfo = { id, age, gender };
     sessionID = generateSessionID();
@@ -560,9 +564,9 @@ function showCard(values, isFirstCard) {
 function showRating() {
   return new Promise((resolve) => {
     showScreen('screen-rating');
-    let selected = 1;
+    let selected = null;
     const display = document.getElementById('rating-value');
-    display.textContent = selected;
+    display.textContent = '-';
 
     const handler = (e) => {
       const num = parseInt(e.key, 10);
@@ -570,7 +574,7 @@ function showRating() {
         selected = (num === 0) ? 10 : num;
         display.textContent = selected;
       }
-      if (e.code === 'Space') {
+      if (e.code === 'Space' && selected !== null) {
         e.preventDefault();
         document.removeEventListener('keydown', handler);
         resolve(selected);
@@ -593,17 +597,21 @@ function waitForKey(...codes) {
   });
 }
 
+function csvEscape(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
 function toCSV(rows) {
   if (rows.length === 0) return '';
   const keys = Object.keys(rows[0]);
-  const lines = [keys.join(',')];
+  const lines = [keys.map(csvEscape).join(',')];
   rows.forEach(row => {
-    lines.push(keys.map(k => {
-      const v = row[k];
-      if (v === null || v === undefined) return '';
-      const s = String(v);
-      return s.includes(',') ? '"' + s + '"' : s;
-    }).join(','));
+    lines.push(keys.map(k => csvEscape(row[k])).join(','));
   });
   return lines.join('\n');
 }
